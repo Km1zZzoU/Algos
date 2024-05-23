@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"math"
 	"math/rand"
 	"time"
 )
@@ -238,41 +240,66 @@ func fastrec(matrix1, matrix2 [][]int) [][]int {
 func main() {
 	benchmarks := []int{}
 	//algos := []string{"Classic", "recur", "fastrec"}
-	var results [9][3]float64
-	i := 0
-	for size := 256; size < 2049; size += 224 {
-		benchmarks = append(benchmarks, size)
-		M1 := grm(size, size)
-		M2 := grm(size, size)
+	var results [3][7][3]float64
+	var res [3][7][3]float64
+	for j := 0; j < 3; j++ {
+		i := 0
+		for size := 256; size < 1601; size += 224 {
+			benchmarks = append(benchmarks, size)
+			M1 := grm(size, size)
+			M2 := grm(size, size)
 
-		start := time.Now()
-		_ = classic(M1, M2)
-		restime := float64(time.Since(start))
-		results[i][0] = restime / 1000000000
+			start := time.Now()
+			_ = classic(M1, M2)
+			restime := float64(time.Since(start))
+			results[j][i][0] = restime / 1000000
 
-		startrecur := time.Now()
-		_ = recur(M1, M2)
-		restimerecur := float64(time.Since(startrecur))
-		results[i][1] = restimerecur / 1000000000
+			startrecur := time.Now()
+			_ = recur(M1, M2)
+			restimerecur := float64(time.Since(startrecur))
+			results[j][i][1] = restimerecur / 1000000
 
-		startfast := time.Now()
-		_ = fastrec(M1, M2)
-		restimefast := float64(time.Since(startfast))
-		results[i][2] = restimefast / 1000000000
-
-		i++
+			startfast := time.Now()
+			_ = fastrec(M1, M2)
+			restimefast := float64(time.Since(startfast))
+			results[j][i][2] = restimefast / 1000000
+			i++
+		}
+	}
+	for i := 0; i < 7; i++ {
+		for j := 0; j < 3; j++ {
+			res[0][i][j] = (results[0][i][j] + results[1][i][j] + results[2][i][j]) / 3
+			disp1 := (res[0][i][j] - results[0][i][j])
+			disp1 *= disp1
+			disp2 := (res[0][i][j] - results[1][i][j])
+			disp2 *= disp2
+			disp3 := (res[0][i][j] - results[2][i][j])
+			disp3 *= disp3
+			disp := (disp1 + disp2 + disp3) / 3
+			res[1][i][j] = math.Pow(disp, 0.5)
+			res[2][i][j] = math.Pow(results[0][i][j]*results[1][i][j]*results[2][i][j], 0.333333)
+		}
+	}
+	fmt.Printf("benchmarks / Classic avg / standrt deviation / avg geom / recur avg / standrt deviation / avg geom / fastrec / avg / standrt deviation / avg geom\n")
+	for i := 0; i < 7; i++ {
+		fmt.Print(256 + 224*i)
+		for j := 0; j < 3; j++ {
+			fmt.Printf(" | ")
+			for k := 0; k < 3; k++ {
+				fmt.Printf(" %.2f ", res[k][i][j])
+			}
+		}
+		fmt.Printf("\n")
 	}
 	/*
-	 | Benchmark |  Classic   |   recur    |  fastrec   |
-	 |--------------------------------------------------|
-	 | 256       |  0.080212  |  0.071176  |  0.062511  |
-	 | 480       |  0.760865  |  0.555569  |  0.429305  |
-	 | 704       |  1.889631  |  4.163698  |  2.910908  |
-	 | 928       |  6.386918  |  4.07202   |  2.873732  |
-	 | 1152      |  9.874305  | 32.634299  | 20.953468  |
-	 | 1376      | 30.304447  | 32.825395  | 20.341156  |
-	 | 1600      | 38.783783  | 33.189794  | 20.639858  |
-	 | 1824      | 87.841704  | 32.599347  | 20.365677  |
-	 | 2048      | 146.517756 | 34.175543  | 21.571178  |
+		benchmarks / Classic avg / standrt deviation / avg geom    / recur avg / standrt deviation / avg geom    / fastrec avg / standrt deviation / avg geom
+		256       |  26.03               2.29           25.93     |  26.31            0.89            26.29     |   23.43                0.48          23.42
+		480       |  248.99              9.70           248.80    |  213.14           1.80            213.13    |   170.22               1.76          170.21
+		704       |  731.59              19.00          731.34    |  1709.98          5.21            1709.96   |   1206.15              9.28          1206.11
+		928       |  2622.75             147.28         2618.52   |  1729.39          21.80           1729.24   |   1208.35              3.72          1208.33
+		1152      |  3872.99             138.49         3870.49   |  13651.67         58.65           13651.41  |   8518.64              118.52        8517.74
+		1376      |  13479.97            837.39         13453.18  |  13718.76         60.09           13718.49  |   8579.10              150.48        8577.71
+		1600      |  18015.59            673.02         18003.04  |  13894.90         182.72          13893.58  |   8524.74              67.84         8524.40
+
 	*/
 }

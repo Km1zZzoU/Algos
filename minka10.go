@@ -11,7 +11,7 @@ func LSDRadixSort(arr []int) {
 
 	maxValue := getMaxValue(arr)
 
-	for exp := 1; maxValue/exp > 0; exp *= 10 {
+	for exp := 1; maxValue/exp > 1; exp *= 10 {
 		countingSort(arr, exp)
 	}
 }

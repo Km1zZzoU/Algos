@@ -23,9 +23,15 @@ func malloc(N int) dynamicarray {
 	return dynamicarray{array: &array[0], len: 0, cap: N}
 }
 
-func rellocate(dynarr *dynamicarray) dynamicarray {
-	array := make([]int, dynarr.cap*2)
-	dynarr2 := dynamicarray{&array[0], dynarr.len, dynarr.cap * 2}
+func rellocate(dynarr *dynamicarray, double bool) dynamicarray {
+	var dynarr2 dynamicarray
+	if double {
+		array := make([]int, dynarr.cap*2)
+		dynarr2 = dynamicarray{&array[0], dynarr.len, dynarr.cap * 2}
+	} else {
+		array := make([]int, dynarr.cap/2)
+		dynarr2 = dynamicarray{&array[0], dynarr.len, dynarr.cap / 2}
+	}
 	for i := 0; i < dynarr.len; i++ {
 		*addpointeri(dynarr2.array, i*8) = *addpointeri(dynarr.array, i*8)
 	}
@@ -34,7 +40,7 @@ func rellocate(dynarr *dynamicarray) dynamicarray {
 
 func push(dynarr *dynamicarray, element int) {
 	if dynarr.len == dynarr.cap {
-		*dynarr = rellocate(dynarr)
+		*dynarr = rellocate(dynarr, true)
 	}
 	*addpointeri(dynarr.array, dynarr.len*8) = element
 	dynarr.len++
@@ -45,6 +51,9 @@ func del(dynarr *dynamicarray) {
 		panic("can not be delete element in empty array")
 	}
 	dynarr.len--
+	if dynarr.len*2 < dynarr.cap {
+		*dynarr = rellocate(dynarr, false)
+	}
 }
 
 func take(dynarr dynamicarray, i int) int {
