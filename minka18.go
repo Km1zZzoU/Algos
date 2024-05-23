@@ -80,29 +80,38 @@ func peek(dynarr dynamicarray) int {
 }
 
 func priority(oper uint8) int {
+	if oper == '.' {
+		return 2
+	}
 	if oper == '^' {
 		return 2
 	}
-	if oper == '*' {
+	if oper == '!' {
 		return 3
 	}
-	if oper == '+' {
+	if oper == '~' {
+		return 3
+	}
+	if oper == '*' {
 		return 4
+	}
+	if oper == '+' {
+		return 5
 	}
 	if oper == '-' {
-		return 4
+		return 5
 	}
 	if oper == '<' {
-		return 6
+		return 7
 	}
 	if oper == '>' {
-		return 6
+		return 7
 	}
 	if oper == '&' { //and
-		return 4
+		return 5
 	}
 	if oper == '|' {
-		return 5
+		return 6
 	}
 	return 0
 }
@@ -152,4 +161,6 @@ func main() {
 	badhotdog(string3)
 	string4 := "2*3+4"
 	badhotdog(string4)
+	string5 := "2*3+4*!(5-7)^6.2"
+	badhotdog(string5)
 }
