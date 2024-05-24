@@ -44,14 +44,14 @@ func fixheadheap(priority *prioq, i int) {
 					if priority.array[i*2+1].Val < priority.array[i*2+2].Val {
 						if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+1].Val {
 							swap(priority, i, i*2+1)
-							fixheadheap(priority, i*2+1)
+							i = i*2 + 1
 						} else {
 							return
 						}
 					} else { //если оба сына не нил но второй меньше
 						if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+2].Val {
 							swap(priority, i, i*2+2)
-							fixheadheap(priority, i*2+2)
+							i = i*2 + 2
 						} else {
 							return
 						}
@@ -59,7 +59,7 @@ func fixheadheap(priority *prioq, i int) {
 				} else { //если первый сын не нил а второй нил
 					if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+1].Val {
 						swap(priority, i, i*2+1)
-						fixheadheap(priority, i*2+1)
+						i = i*2 + 1
 					} else {
 						return
 					}
@@ -67,7 +67,7 @@ func fixheadheap(priority *prioq, i int) {
 			} else if priority.array[i*2+2] != nil { //если первый нил проверяем второго
 				if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+2].Val {
 					swap(priority, i, i*2+2)
-					fixheadheap(priority, i*2+2)
+					i = i*2 + 2
 				} else {
 					return
 				}
@@ -77,7 +77,7 @@ func fixheadheap(priority *prioq, i int) {
 		} else if priority.array[i*2+1] != nil { //сын только один
 			if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+1].Val {
 				swap(priority, i, i*2+1)
-				fixheadheap(priority, i*2+1)
+				i = i*2 + 1
 			} else {
 				return
 			}

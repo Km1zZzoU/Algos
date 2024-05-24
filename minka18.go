@@ -79,41 +79,41 @@ func peek(dynarr dynamicarray) int {
 	return outed
 }
 
-func priority(oper uint8) int {
+func priority(oper uint8) (int, bool) {
 	if oper == '.' {
-		return 2
+		return 2, true
 	}
 	if oper == '^' {
-		return 2
+		return 2, true
 	}
 	if oper == '!' {
-		return 3
+		return 3, false
 	}
 	if oper == '~' {
-		return 3
+		return 3, false
 	}
 	if oper == '*' {
-		return 4
+		return 4, false
 	}
 	if oper == '+' {
-		return 5
+		return 5, false
 	}
 	if oper == '-' {
-		return 5
+		return 5, false
 	}
 	if oper == '<' {
-		return 7
+		return 7, false
 	}
 	if oper == '>' {
-		return 7
+		return 7, false
 	}
 	if oper == '&' { //and
-		return 5
+		return 5, false
 	}
 	if oper == '|' {
-		return 6
+		return 6, false
 	}
-	return 0
+	return 0, false
 }
 
 func badhotdog(string string) {
@@ -135,9 +135,16 @@ func badhotdog(string string) {
 		} else {
 			if stack.len > 0 {
 				for {
-					if stack.len > 0 && peek(stack) != '(' && priority(string[i]) > priority((uint8)(peek(stack))) {
-						tmp := pop(&stack)
-						fmt.Printf("%c ", tmp)
+					if stack.len > 0 && peek(stack) != '(' {
+						p1, lev1 := priority(string[i])
+						p2, _ := priority((uint8)(peek(stack)))
+						if p1 > p2 || (p1 == p2 && lev1) {
+							tmp := pop(&stack)
+							fmt.Printf("%c ", tmp)
+						} else {
+							push(&stack, (int)(string[i]))
+							break
+						}
 					} else {
 						push(&stack, (int)(string[i]))
 						break
@@ -161,6 +168,6 @@ func main() {
 	badhotdog(string3)
 	string4 := "2*3+4"
 	badhotdog(string4)
-	string5 := "2*3+4*!(5-7)^6.2"
+	string5 := "!(5-7*4)^6.2+3"
 	badhotdog(string5)
 }
