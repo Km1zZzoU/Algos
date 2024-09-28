@@ -37,52 +37,15 @@ func swap(priority *prioq, i, j int) {
 }
 
 func fixheadheap(priority *prioq, i int) {
-	for i*2+1 < priority.len { //пока есть хоть один сын у рассматриваемого элемента
-		if i*2+2 < priority.len { // проверка на наличие двух детей
-			if priority.array[i*2+1] != nil {
-				if priority.array[i*2+2] != nil {
-					if priority.array[i*2+1].Val < priority.array[i*2+2].Val {
-						if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+1].Val {
-							swap(priority, i, i*2+1)
-							i = i*2 + 1
-						} else {
-							return
-						}
-					} else { //если оба сына не нил но второй меньше
-						if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+2].Val {
-							swap(priority, i, i*2+2)
-							i = i*2 + 2
-						} else {
-							return
-						}
-					}
-				} else { //если первый сын не нил а второй нил
-					if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+1].Val {
-						swap(priority, i, i*2+1)
-						i = i*2 + 1
-					} else {
-						return
-					}
-				}
-			} else if priority.array[i*2+2] != nil { //если первый нил проверяем второго
-				if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+2].Val {
-					swap(priority, i, i*2+2)
-					i = i*2 + 2
-				} else {
-					return
-				}
-			} else { //если первый сын не нил а второй нил
-				return
-			}
-		} else if priority.array[i*2+1] != nil { //сын только один
-			if priority.array[i] == nil || priority.array[i].Val > priority.array[i*2+1].Val {
+	for i*2+1 < priority.len {
+		if i*2+2 >= priority.len || priority.array[i*2+1].Val < priority.array[i*2+2].Val {
+			if priority.array[i].Val > priority.array[i*2+1].Val {
 				swap(priority, i, i*2+1)
-				i = i*2 + 1
-			} else {
-				return
+				fixheadheap(priority, i*2+1)
 			}
-		} else {
-			return
+		} else if priority.array[i].Val > priority.array[i*2+2].Val {
+			swap(priority, i, i*2+2)
+			fixheadheap(priority, i*2+2)
 		}
 		i++
 	}
@@ -122,6 +85,10 @@ func mergeKLists(lists []*ListNode) *ListNode {
 		}
 
 		queue.array[0] = queue.array[0].Next
+		if queue.array[0] == nil {
+			swap(&queue, 0, queue.len-1)
+			queue.len--
+		}
 		fixheadheap(&queue, 0)
 	}
 
@@ -171,12 +138,10 @@ func main() {
 		}
 	*/
 	lists := []*ListNode{
-		createList([]int{-9, -7, -7}),
-		createList([]int{-6, -4, -1, 1}),
-		createList([]int{-6, -5, -2, 0, 0, 1, 2}),
-		createList([]int{-9, -8, -6, -5, -4, 1, 2, 4}),
-		createList([]int{-10}),
-		createList([]int{-5, 2, 3}),
+		createList([]int{1, 4, 5}),
+		createList([]int{1, 3, 4, 7}),
+		createList([]int{2, 6}),
+		createList([]int{1, 3, 5, 6, 8}),
 	}
 	head := mergeKLists(lists)
 	printLinkedList(head)

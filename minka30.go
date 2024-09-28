@@ -4,121 +4,213 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 )
 
-type elem struct {
-	item  int
-	group int
+type g struct {
 	bef   []int
+	elems []int
 }
 
-type graph struct {
-	num int
-	bef []*graph
+type SortResult struct {
+	index int
+	items []int
 }
 
 func sortItems(n int, m int, group []int, beforeItems [][]int) (sortItems []int) {
 	var (
+		groups     = make([]*g, m+n)
 		countGroup = m
-		elems      = make([]elem, n)
-		elems2     = make([][]*graph, n+m)
-		elemsline  = make([]*graph, 0)
 	)
 	for i := 0; i < n; i++ {
 		if group[i] < 0 {
 			group[i] = countGroup
 			countGroup++
 		}
-		elems[i] = elem{
-			item:  i,
-			group: group[i],
-			bef:   beforeItems[i],
-		}
-		gr := graph{
-			num: i,
-			bef: nil,
-		}
-		elemsline = append(elemsline, &gr)
-		if elems2[group[i]] == nil {
-			arr := make([]*graph, 0)
-			elems2[group[i]] = append(arr, &gr)
+	}
+	for i := 0; i < n; i++ {
+		if groups[group[i]] == nil {
+			groups[group[i]] = &g{
+				bef:   make([]int, 0),
+				elems: append(make([]int, 0), i),
+			}
 		} else {
-			elems2[group[i]] = append(elems2[group[i]], &gr)
+			groups[group[i]].elems = append(groups[group[i]].elems, i)
 		}
-	}
-	groups := make([]*graph, countGroup)
-	for i := range groups {
-		groups[i] = &graph{
-			num: i,
-			bef: nil,
-		}
-	}
-	for _, e := range elems {
-		for _, b := range e.bef {
-			if groups[e.group] != groups[elems[b].group] {
-				if groups[e.group].bef == nil {
-					groups[e.group].bef = []*graph{groups[elems[b].group]}
-				} else if !slices.Contains(groups[e.group].bef, groups[elems[b].group]) {
-					groups[e.group].bef = append(groups[e.group].bef, groups[elems[b].group])
-				}
+		for j := 0; j < len(beforeItems[i]); j++ {
+			el := beforeItems[i][j]
+			if group[el] != group[i] && !slices.Contains(groups[group[i]].bef, group[el]) {
+				groups[group[i]].bef = append(groups[group[i]].bef, group[el])
+			}
+			if group[i] != group[el] {
+				beforeItems[i] = append(beforeItems[i][:j], beforeItems[i][j+1:]...)
+				j--
 			}
 		}
 	}
-	sortGroups := topsort(groups, n+m)
-	if sortGroups == nil {
+	countGroup = 0
+	s2b := make(map[int]int)
+	b2s := make(map[int]int)
+	for i, gr := range groups {
+		if gr != nil {
+			b2s[i] = countGroup
+			s2b[countGroup] = i
+			countGroup++
+		}
+	}
+
+	priorGroups := topSortGroups(&groups, countGroup, &b2s, &s2b)
+	if priorGroups == nil {
 		return nil
 	}
 
-	for _, grp := range sortGroups {
-		//для каждой группы
-		for _, grf := range elems2[grp.num] {
-			// для каждого графа из группы
-			for _, numbef := range elems[grf.num].bef {
-				if grp.num == elems[grf.num].group {
-					grf.bef = append(grf.bef, elemsline[numbef])
-				}
-			}
-		}
-		if elems2[grp.num] != nil {
-			sortNum := topsort(elems2[grp.num], n+m)
-			if sortNum == nil {
-				return nil
-			}
-			for _, num := range sortNum {
-				sortItems = append(sortItems, num.num)
-			}
+	var wg sync.WaitGroup
+	results := make(chan SortResult, len(priorGroups))
+
+	for i := 0; i < len(priorGroups); i++ {
+		wg.Add(1)
+		go processGroup(priorGroups[i], &groups[s2b[i]].elems, &beforeItems, results, &wg)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	sortedResults := make(map[int][]int)
+
+	for result := range results {
+		if result.items != nil {
+			sortedResults[result.index] = result.items
 		}
 	}
+
+	for i := 1; i <= countGroup; i++ {
+		items := sortedResults[i]
+		if items == nil {
+			return nil
+		}
+		sortItems = append(sortItems, items...)
+	}
+
 	return sortItems
 }
 
-func topsort(Nodes []*graph, nm int) (sortNodes []*graph) {
+func topSortGroups(groups *[]*g, count int, b2s, s2b *map[int]int) []int {
 	var (
-		count      = len(Nodes)
-		numberNode = 1
-		priotity   = make([]int, nm)
-		compprio   = make([]int, 0)
-		err        error
+		numberGroup = 1
+		err         error
+		priority    = make([]int, count)
 	)
 	for i := 0; i < count; i++ {
-		if priotity[Nodes[i].num] == 0 {
-			priotity[Nodes[i].num] = -1
-			numberNode, err = giveNumber(Nodes[i], numberNode, &priotity)
+		if priority[i] == 0 {
+			priority[i] = -1
+			numberGroup, err = giveNumberGroup(groups, (*s2b)[i], numberGroup, &priority, b2s)
 			if err != nil {
 				return nil
 			}
 		}
 	}
-	for _, p := range priotity {
-		if p > 0 {
-			compprio = append(compprio, p)
-		}
-	}
-	swapsort(&Nodes, &compprio, 0, count-1)
-	return Nodes
+	return priority
 }
 
-func swapsort(Nodes *[]*graph, priority *[]int, low, high int) {
+func giveNumberGroup(groups *[]*g, nameGroup, numberGroup int, priority *[]int, b2s *map[int]int) (int, error) {
+	if len((*groups)[nameGroup].bef) == 0 && (*priority)[(*b2s)[nameGroup]] < 1 {
+		(*priority)[(*b2s)[nameGroup]] = numberGroup
+		numberGroup++
+		return numberGroup, nil
+	}
+
+	for _, bef := range (*groups)[nameGroup].bef {
+		if bef != nameGroup {
+			if (*priority)[(*b2s)[bef]] == -1 {
+				return -1, errors.New("cycle")
+			} else if (*priority)[(*b2s)[bef]] == 0 {
+				(*priority)[(*b2s)[nameGroup]] = -1
+				var err error
+				numberGroup, err = giveNumberGroup(groups, bef, numberGroup, priority, b2s)
+				if err != nil {
+					return -1, err
+				}
+			}
+		}
+	}
+	(*priority)[(*b2s)[nameGroup]] = numberGroup
+	numberGroup++
+	return numberGroup, nil
+}
+
+func processGroup(num int, items *[]int, beforeItems *[][]int, results chan<- SortResult, wg *sync.WaitGroup) {
+	defer wg.Done()
+	locSortItems := make([]int, 0)
+
+	if items != nil {
+		sortNum := topSort(items, beforeItems)
+		if sortNum == nil {
+			results <- SortResult{
+				index: -1,
+				items: nil,
+			}
+			return
+		}
+		for _, el := range sortNum {
+			locSortItems = append(locSortItems, el)
+		}
+	}
+	results <- SortResult{
+		index: num,
+		items: locSortItems,
+	}
+}
+
+func topSort(items *[]int, beforeItems *[][]int) []int {
+	var (
+		count        = len(*items)
+		numberNumber = 1
+		priority     = make([]int, count)
+		err          error
+	)
+	for i := 0; i < count; i++ {
+		if priority[i] == 0 {
+			priority[i] = -1
+			numberNumber, err = giveNumber(items, i, numberNumber, &priority, beforeItems)
+			if err != nil {
+				return nil
+			}
+		}
+	}
+	swapsort(items, &priority, 0, count-1)
+	return *items
+}
+
+func giveNumber(items *[]int, inumber, numberNumber int, priority *[]int, beforeItems *[][]int) (int, error) {
+	if (*beforeItems)[(*items)[inumber]] == nil && (*priority)[inumber] < 1 {
+		(*priority)[inumber] = numberNumber
+		numberNumber++
+		return numberNumber, nil
+	}
+
+	for _, bef := range (*beforeItems)[(*items)[inumber]] {
+		if bef != (*items)[inumber] {
+			ibef := slices.Index(*items, bef)
+			if (*priority)[ibef] == -1 {
+				return -1, errors.New("cycle")
+			} else if (*priority)[ibef] == 0 {
+				(*priority)[ibef] = -1
+				var err error
+				numberNumber, err = giveNumber(items, ibef, numberNumber, priority, beforeItems)
+				if err != nil {
+					return -1, err
+				}
+			}
+		}
+	}
+	(*priority)[inumber] = numberNumber
+	numberNumber++
+	return numberNumber, nil
+}
+
+func swapsort(items *[]int, priority *[]int, low, high int) {
 	var (
 		pivot = (*priority)[(high+low)/2]
 		start = low
@@ -129,7 +221,7 @@ func swapsort(Nodes *[]*graph, priority *[]int, low, high int) {
 		return
 	} else if l == 2 {
 		if (*priority)[low] > (*priority)[high] {
-			(*Nodes)[start], (*Nodes)[end] = (*Nodes)[end], (*Nodes)[start]
+			(*items)[start], (*items)[end] = (*items)[end], (*items)[start]
 		}
 		return
 	}
@@ -149,7 +241,7 @@ func swapsort(Nodes *[]*graph, priority *[]int, low, high int) {
 			if pivot < b {
 				end--
 			} else {
-				(*Nodes)[start], (*Nodes)[end] = (*Nodes)[end], (*Nodes)[start]
+				(*items)[start], (*items)[end] = (*items)[end], (*items)[start]
 				(*priority)[start], (*priority)[end] = (*priority)[end], (*priority)[start]
 
 				start++
@@ -158,48 +250,37 @@ func swapsort(Nodes *[]*graph, priority *[]int, low, high int) {
 		}
 	}
 	p := max(start, end)
-	swapsort(Nodes, priority, low, p)
-	swapsort(Nodes, priority, p, high)
-}
-
-func giveNumber(Node *graph, numberNode int, priority *[]int) (int, error) {
-	if Node.bef == nil && (*priority)[Node.num] < 1 {
-		(*priority)[Node.num] = numberNode
-		numberNode++
-		return numberNode, nil
-	}
-
-	for _, bef := range Node.bef {
-		if bef != Node {
-			if (*priority)[bef.num] == -1 {
-				return -1, errors.New("cycle")
-			} else if (*priority)[bef.num] == 0 {
-				(*priority)[Node.num] = -1
-				var err error
-				numberNode, err = giveNumber(bef, numberNode, priority)
-				if err != nil {
-					return -1, err
-				}
-			}
-		}
-	}
-	(*priority)[Node.num] = numberNode
-	numberNode++
-	return numberNode, nil
+	swapsort(items, priority, low, p)
+	swapsort(items, priority, p, high)
 }
 
 func main() {
-	n := 5
-	m := 3
+	/*
+		n := 10000
+		m := 5000
 
-	//             0   1   2  3  4  5  6  7
-	group := []int{0, 0, 2, 1, 0}
+		//             0   1   2  3  4  5  6  7
+		group := make([]int, n)
+		for i := 0; i < n; i++ {
+			group[i] = i / 2
+		}
+		beforeItems := make([][]int, n)
+		for i := 0; i < n; i++ {
+			beforeItems[i] = make([]int, 1)
+			for j := 0; j < 1; j++ {
+				beforeItems[i][j] = 0
+			}
+		}*/
+	n := 5
+	m := 5
+	//              0  1  2  3  4  5  6  7
+	group := []int{2, 0, -1, 3, 0}
 	beforeItems := [][]int{
-		{3},       // 0
-		{},        // 1
+		{2, 1, 3}, // 0
+		{2, 4},    // 1
 		{},        // 2
 		{},        // 3
-		{1, 3, 2}, // 4
+		{},
 	}
 	fmt.Println(sortItems(n, m, group, beforeItems))
 }

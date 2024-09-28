@@ -79,7 +79,7 @@ func peek(dynarr dynamicarray) int {
 	return outed
 }
 
-func priority(oper uint8) (int, bool) {
+//func priority(oper uint8) (int, bool) {
 	if oper == '.' {
 		return 2, true
 	}
