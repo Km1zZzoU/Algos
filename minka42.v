@@ -72,8 +72,6 @@ pub fn treap_construct(mut values []int) &Treap {
 
 		mut head := treaps[0]
 		for ; head.papa != unsafe { nil }; head = head.papa {}
-		head.print_tree(0)
-		println("-----------====----------")
 	}
 	mut head := treaps[0]
 	for ; head.papa != unsafe { nil }; head = head.papa {}
@@ -202,14 +200,18 @@ fn sum(arr []int, from int, to int) int {
 }
 fn main() {
 	mut arr := [1, 4, 5, 7, 9, 13, 16]
+	mut k := 0
+	for ; k < 1234; k++ {
+		arr << rand.int()
+	}
 	arr.sort()
 	treap := treap_construct(mut arr)
-	println("complete construct")
-	treap.print_tree(0)
-	for i in 1..4 {
-		for j in i..5 {
-			print("$i, $j [${treap.sum(i, j)}, ${sum(arr, i, j)}] ")
-			println(treap.sum(i, j) == sum(arr, i, j))
+	for i in 1..1234 {
+		for j in i..1234 {
+			if treap.sum(i, j) == sum(arr, i, j) == false {
+				panic("shit")
+			}
 		}
 	}
+	println("nice")
 }
