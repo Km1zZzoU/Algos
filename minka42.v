@@ -8,6 +8,7 @@ pub:
 	val int
 	prio int
 pub mut:
+	c   int
 	sum int
 }
 
@@ -20,9 +21,13 @@ pub mut:
 	r    &Treap = unsafe { nil }
 }
 
-fn (t Treap) print_tree(indent int) {
+fn (t &Treap) print_tree(indent int) {
+	if t == unsafe { nil } {
+		println("nil")
+		return
+	}
 	if isnil(t.l) && isnil(t.r) {
-		println(' '.repeat(indent) + 'Node(key: $t.node.key, prio: $t.node.prio val: $t.node.val sum: $t.node.sum)')
+		println(' '.repeat(indent) + 'Node(c: $t.node.c, prio: $t.node.prio val: $t.node.val sum: $t.node.sum)')
 		return
 	}
 
@@ -30,7 +35,7 @@ fn (t Treap) print_tree(indent int) {
 		t.r.print_tree(indent + 12)
 	}
 
-	println(' '.repeat(indent) + 'Node(key: $t.node.key, prio: $t.node.prio val: $t.node.val sum: $t.node.sum)')
+	println(' '.repeat(indent) + 'Node(c: $t.node.c, prio: $t.node.prio val: $t.node.val sum: $t.node.sum)')
 
 	if !isnil(t.l) {
 		t.l.print_tree(indent + 12)
@@ -49,6 +54,7 @@ pub fn treap_construct(mut values []int) &Treap {
 			prio: rand.int()
 			sum:  values[i]
 			val:  values[i]
+			c:    1
 		}
 	}
 
@@ -63,6 +69,11 @@ pub fn treap_construct(mut values []int) &Treap {
 	}
 	for i in 1..values.len {
 		treaps[i-1].treap_push_node(treaps[i])
+
+		mut head := treaps[0]
+		for ; head.papa != unsafe { nil }; head = head.papa {}
+		head.print_tree(0)
+		println("-----------====----------")
 	}
 	mut head := treaps[0]
 	for ; head.papa != unsafe { nil }; head = head.papa {}
@@ -70,20 +81,45 @@ pub fn treap_construct(mut values []int) &Treap {
 	return head
 }
 
+fn (treap &Treap) update_c_sum_rec(n int) {
+	unsafe {
+		for ;treap != nil; treap = treap.papa {
+			treap.node.sum += n
+			treap.node.c++
+		}
+	}
+}
+
+fn (treap &Treap) update() {
+	unsafe {
+		treap.node.c = 1
+		treap.node.sum = treap.node.val
+		if treap.l != nil {
+			treap.node.c += treap.l.node.c
+			treap.node.sum += treap.l.node.sum
+		}
+		if treap.r != nil {
+			treap.node.c += treap.r.node.c
+			treap.node.sum += treap.r.node.sum
+		}
+	}
+}
+
 fn (before &Treap) treap_push_node(new &Treap) {
 	unsafe {
 		if before.node.key < new.node.key && before.node.prio < new.node.prio {
 			new.l = before.r
 			if new.l != nil {
-				before.node.sum += new.l.node.sum
+				new.node.sum += new.l.node.sum
 			}
 			before.r = new
-			before.node.sum += new.node.val
+			before.update_c_sum_rec(new.node.val)
 			new.papa = before
 		} else if before.papa == nil {
 			new.l = before
 			new.node.sum += new.l.node.sum
 			before.papa = new
+			new.update()
 		} else {
 			before.papa.treap_push_node(new)
 		}
@@ -95,42 +131,50 @@ fn (root &Treap) split(k int) (&Treap, &Treap) {
 		if root == nil {
 			return nil, nil
 		}
-		if k > root.node.key {
-			r_l, r_r := root.r.split(k)
-			if r_l != nil {
-				root.r.node.sum -= r_l.node.sum
+		if root.l == nil || k > root.l.node.c {
+			lc := 0
+			if root.l != nil {
+				lc = root.l.node.c
 			}
-			if root.r != nil {
-				root.node.sum -= root.r.node.sum
+			r_r := root.r
+			r_l := root.r
+			if k - lc - 1 > 0 {
+				r_l, r_r = root.r.split(k - lc - 1)
+				root.r = r_l
+			} else {
+				root.r = nil
 			}
-			root.r = r_l
+			if r_r != nil {
+				root.update()
+			}
 			return root, r_r
 		} else {
 			l_l, l_r := root.l.split(k)
-			if l_r != nil {
-				root.l.node.sum -= l_r.node.sum
-			}
-			if root.l != nil {
-				root.node.sum -= root.l.node.sum
-			}
 			root.l = l_r
-			return l_l, l_r
+			root.update()
+			return l_l, root
 		}
 	}
 }
 
 fn merge(t1 &Treap, t2 &Treap) &Treap {
 	unsafe {
-		if t1 == nil || t2 == nil {
-			return nil
+
+		if t1 == nil {
+			return t2
 		}
+
+		if t2 == nil {
+			return t1
+		}
+
 		if t1.node.prio < t2.node.prio {
-			t1.node.sum += t2.node.sum
 			t1.r = merge(t1.r, t2)
+			t1.update()
 			return t1
 		} else {
-			t2.node.sum += t1.node.sum
 			t2.l = merge(t1, t2.l)
+			t2.update()
 			return t2
 		}
 	}
@@ -149,10 +193,23 @@ pub fn (root &Treap) sum(from int, to int) int {
 	return res
 }
 
+fn sum(arr []int, from int, to int) int {
+	mut sum := 0
+	for i in from..(to+1) {
+		sum += arr[i]
+	}
+	return sum
+}
 fn main() {
 	mut arr := [1, 4, 5, 7, 9, 13, 16]
 	arr.sort()
 	treap := treap_construct(mut arr)
+	println("complete construct")
 	treap.print_tree(0)
-	print(treap.sum(1, 4) == 25)
+	for i in 1..4 {
+		for j in i..5 {
+			print("$i, $j [${treap.sum(i, j)}, ${sum(arr, i, j)}] ")
+			println(treap.sum(i, j) == sum(arr, i, j))
+		}
+	}
 }
