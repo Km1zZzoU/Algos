@@ -4,6 +4,7 @@ import "fmt"
 
 type unionFind struct {
 	groups []int
+	rank   []int
 }
 
 type task struct {
@@ -22,12 +23,25 @@ func (uf unionFind) find(n int) int {
 	}
 }
 
+func (uf unionFind) union(x, y int) {
+	a := uf.find(x)
+	b := uf.find(y)
+	if uf.rank[a] > uf.rank[b] {
+		uf.groups[b] = a
+	} else {
+		uf.groups[a] = b
+		if uf.rank[a] == uf.rank[b] {
+			uf.rank[b]++
+		}
+	}
+}
+
 func construct(n int) unionFind {
 	groups := make([]int, n)
 	for i := range groups {
 		groups[i] = i
 	}
-	return unionFind{groups}
+	return unionFind{groups, make([]int, n)}
 }
 
 func solve(tasks []task) (sortasks []string) {
@@ -35,17 +49,28 @@ func solve(tasks []task) (sortasks []string) {
 	rightPointer := len - 1
 	sortasks = make([]string, len)
 	uf := construct(len + 1)
+	mapa := make([]int, len+1)
+
+	for i := 0; i <= len; i++ {
+		mapa[i] = i
+	}
+
 	for _, t := range tasks {
-		place := uf.find(t.deadLine)
+		place := mapa[uf.find(t.deadLine)]
 		if place > 0 {
 			sortasks[place-1] = t.name
-			uf.groups[place] = uf.find(place - 1)
+			mapa[uf.find(place)] = uf.find(place - 1)
+			mapa[uf.find(place-1)] = uf.find(place - 1)
+			uf.union(place, place-1)
+			// uf.groups[place] = uf.find(place - 1)
 			if place-1 == rightPointer {
 				rightPointer--
 			}
 		} else {
 			sortasks[rightPointer] = t.name
-			uf.groups[rightPointer+1] = uf.find(rightPointer)
+			mapa[uf.find(rightPointer+1)] = uf.find(rightPointer)
+			mapa[uf.find(rightPointer)] = uf.find(rightPointer)
+			uf.union(rightPointer+1, rightPointer)
 			rightPointer--
 		}
 	}
