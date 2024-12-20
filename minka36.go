@@ -59,18 +59,17 @@ func solve(tasks []task) (sortasks []string) {
 		place := mapa[uf.find(t.deadLine)]
 		if place > 0 {
 			sortasks[place-1] = t.name
-			mapa[uf.find(place)] = uf.find(place - 1)
-			mapa[uf.find(place-1)] = uf.find(place - 1)
+			nextplace := mapa[uf.find(place-1)]
 			uf.union(place, place-1)
-			// uf.groups[place] = uf.find(place - 1)
+			mapa[uf.find(place)] = nextplace
 			if place-1 == rightPointer {
 				rightPointer--
 			}
 		} else {
 			sortasks[rightPointer] = t.name
-			mapa[uf.find(rightPointer+1)] = uf.find(rightPointer)
-			mapa[uf.find(rightPointer)] = uf.find(rightPointer)
+			nextplace := uf.find(rightPointer)
 			uf.union(rightPointer+1, rightPointer)
+			mapa[uf.find(rightPointer+1)] = nextplace
 			rightPointer--
 		}
 	}
@@ -105,12 +104,26 @@ func main() {
 	fmt.Println(solve(tasks))
 
 	tasks = []task{
+		{"K", 3, 60},
 		{"D", 5, 50},
-		{"D2", 5, 45},
+		{"D2", 4, 47},
+		{"D3", 5, 45},
 		{"C", 5, 35},
 		{"A", 5, 25},
 		{"E", 2, 20},
 		{"B", 1, 10},
+	}
+	fmt.Println(solve(tasks))
+
+	tasks = []task{
+		{"A", 6, 40},
+		{"B", 5, 35},
+		{"C", 4, 30},
+		{"D", 2, 25},
+		{"E", 1, 15},
+		{"F", 3, 10},
+		{"W", 6, 9},
+		{"Q", 6, 8},
 	}
 	fmt.Println(solve(tasks))
 }
